@@ -1,0 +1,32 @@
+{
+  "name": "civicfix-server",
+  "version": "1.0.0",
+  "description": "CivicFix AI - Backend Server",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "seed": "node seed.js",
+    "db:push": "npx drizzle-kit push",
+    "db:studio": "npx drizzle-kit studio"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "@neondatabase/serverless": "^0.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "drizzle-orm": "^0.39.0",
+    "express": "^4.21.0",
+    "formdata-node": "^6.0.3",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.0"
+  }
+}
