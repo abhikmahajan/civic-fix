@@ -1,78 +1,117 @@
 import 'dotenv/config';
+import bcrypt from 'bcrypt';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { db } from './src/config/database.js';
-import { users, departments, complaints, evidence } from './src/db/schema.js';
+import { users, departments, complaints, evidence, agentActions } from './src/db/schema.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadDir = path.join(__dirname, 'uploads');
+
+function ensureDemoEvidence() {
+  const source = path.join(__dirname, 'test.png');
+  if (!fs.existsSync(source)) throw new Error('Missing demo image: server/test.png');
+  fs.mkdirSync(uploadDir, { recursive: true });
+  for (const file of ['sample-pothole.png', 'sample-garbage.png', 'sample-streetlight.png']) {
+    fs.copyFileSync(source, path.join(uploadDir, file));
+  }
+}
 
 async function seed() {
   try {
-    console.log('Seeding departments...');
-    const depts = await db.insert(departments).values([
+    console.log('Starting seed...');
+
+    console.log('Deleting existing data...');
+    await db.delete(agentActions);
+    await db.delete(evidence);
+    await db.delete(complaints);
+    await db.delete(users);
+    await db.delete(departments);
+
+    console.log('Inserting departments...');
+    const insertedDepartments = await db.insert(departments).values([
       { name: 'Road Maintenance', category: 'road_maintenance', contact: 'roads@civicfix.com' },
-      { name: 'Sanitation', category: 'sanitation', contact: 'sanitation@civicfix.com' },
+      { name: 'Sanitation', category: 'sanitation', contact: 'waste@civicfix.com' },
       { name: 'Water & Drainage', category: 'water_drainage', contact: 'water@civicfix.com' },
-      { name: 'Electrical', category: 'electrical', contact: 'electrical@civicfix.com' },
+      { name: 'Electrical', category: 'electrical', contact: 'power@civicfix.com' }
     ]).returning();
+    console.log(`Inserted ${insertedDepartments.length} departments.`);
 
-    console.log('Seeding users...');
+    console.log('Inserting users...');
+    const passwordHash = await bcrypt.hash('password123', 10);
     const insertedUsers = await db.insert(users).values([
-      { name: 'Rahul Kumar', email: 'rahul@example.com', phone: '1234567890', role: 'citizen' },
-      { name: 'Priya Sharma', email: 'priya@example.com', phone: '0987654321', role: 'operator' },
-      { name: 'Amit Singh', email: 'amit@example.com', phone: '1122334455', role: 'worker' },
+      { name: 'Rahul Kumar', email: 'rahul@example.com', phone: '1234567890', role: 'citizen', passwordHash },
+      { name: 'Priya Sharma', email: 'priya@example.com', phone: '0987654321', role: 'management', passwordHash },
+      { name: 'Amit Singh', email: 'amit@example.com', phone: '1122334455', role: 'management', passwordHash }
     ]).returning();
+    console.log(`Inserted ${insertedUsers.length} users.`);
 
-    console.log('Seeding complaints...');
+    const rahulId = insertedUsers.find(u => u.email === 'rahul@example.com').id;
+
+    console.log('Inserting complaints...');
     const insertedComplaints = await db.insert(complaints).values([
       {
-        userId: insertedUsers[0].id,
+        userId: rahulId,
         problemType: 'pothole',
-        description: 'Large pothole on main road.',
-        originalDescription: 'Bada gaddha hai main road pe.',
-        severity: 'high',
-        status: 'pending',
-        department: 'road_maintenance',
+        description: 'There is a very deep pothole causing traffic issues and potential vehicle damage.',
+        originalDescription: 'Very deep pothole',
         latitude: '28.6139',
         longitude: '77.2090',
-        confidence: '0.92',
-        aiReasoning: 'Image clearly shows a deep pothole disrupting traffic flow.',
+        status: 'pending',
+        severity: 'high',
+        department: 'road_maintenance',
       },
       {
-        userId: insertedUsers[0].id,
+        userId: rahulId,
         problemType: 'garbage',
-        description: 'Garbage dump overflowing for 3 days.',
-        originalDescription: 'Kachre ka dher pichle 3 din se bhara pada hai.',
-        severity: 'medium',
-        status: 'in_progress',
-        department: 'sanitation',
+        description: 'The garbage bins are overflowing and causing a foul smell in the neighborhood.',
+        originalDescription: 'Garbage not collected for a week',
         latitude: '28.6200',
         longitude: '77.2100',
-        confidence: '0.88',
-        aiReasoning: 'Garbage accumulation visible, moderate severity.',
+        status: 'in_progress',
+        severity: 'medium',
+        department: 'sanitation',
       },
       {
-        userId: insertedUsers[0].id,
+        userId: rahulId,
         problemType: 'streetlight',
-        description: 'Streetlight not working, area is completely dark.',
-        originalDescription: 'Streetlight kharab hai, bohot andhera hai.',
-        severity: 'critical',
-        status: 'resolved',
-        department: 'electrical',
+        description: 'The streetlight pole fell down during the storm last night.',
+        originalDescription: 'Streetlight broken',
         latitude: '28.6300',
         longitude: '77.2200',
-        confidence: '0.95',
-        aiReasoning: 'Safety hazard due to lack of illumination.',
+        status: 'resolved',
+        severity: 'critical',
+        department: 'electrical',
       }
     ]).returning();
+    console.log(`Inserted ${insertedComplaints.length} complaints.`);
 
-    console.log('Seeding evidence...');
-    await db.insert(evidence).values([
-      { complaintId: insertedComplaints[0].id, type: 'initial_photo', fileUrl: '/uploads/sample-pothole.jpg', description: 'Photo of the pothole.', aiAnalysis: 'Pothole confirmed.', confidence: '0.95' },
-      { complaintId: insertedComplaints[1].id, type: 'initial_photo', fileUrl: '/uploads/sample-garbage.jpg', description: 'Photo of garbage dump.', aiAnalysis: 'Garbage pile confirmed.', confidence: '0.90' },
-      { complaintId: insertedComplaints[2].id, type: 'initial_photo', fileUrl: '/uploads/sample-streetlight.jpg', description: 'Photo of dark street.', aiAnalysis: 'Streetlight out.', confidence: '0.85' },
-    ]);
+    console.log('Inserting evidence...');
+    ensureDemoEvidence();
+    const insertedEvidence = await db.insert(evidence).values([
+      {
+        complaintId: insertedComplaints[0].id,
+        fileUrl: '/uploads/sample-pothole.png',
+        type: 'initial_photo'
+      },
+      {
+        complaintId: insertedComplaints[1].id,
+        fileUrl: '/uploads/sample-garbage.png',
+        type: 'initial_photo'
+      },
+      {
+        complaintId: insertedComplaints[2].id,
+        fileUrl: '/uploads/sample-streetlight.png',
+        type: 'initial_photo'
+      }
+    ]).returning();
+    console.log(`Inserted ${insertedEvidence.length} evidence records.`);
 
-    console.log('Seeding complete!');
+    console.log('Seed completed successfully!');
     process.exit(0);
   } catch (error) {
-    console.error('Seeding failed:', error);
+    console.error('Error during seeding:', error);
     process.exit(1);
   }
 }

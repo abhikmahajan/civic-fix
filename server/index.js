@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { errorHandler } from './src/middleware/error-handler.js';
+import authRouter from './src/routes/auth.js';
 import complaintsRouter from './src/routes/complaints.js';
 import departmentsRouter from './src/routes/departments.js';
 import mockAuthorityRouter from './src/routes/mock-authority.js';
@@ -23,6 +24,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/auth', authRouter);
 app.use('/api/complaints', complaintsRouter);
 app.use('/api/departments', departmentsRouter);
 app.use('/mock', mockAuthorityRouter);
@@ -34,4 +36,3 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 app.use(errorHandler);
 
 app.listen(PORT, () => console.log(`CivicFix server running on port ${PORT}`));
- 

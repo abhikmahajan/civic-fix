@@ -5,24 +5,30 @@ import { eq, desc, and } from 'drizzle-orm';
 import { upload } from '../middleware/upload.js';
 import { processComplaint, verifyComplaintResolution } from '../agent/agent.js';
 import { STATUSES, getValidTransitions } from '../agent/state-machine.js';
+import { authenticate, authorize } from '../middleware/auth-middleware.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+const MANAGEMENT_ROLES = ['management', 'operator', 'admin'];
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
-// POST /api/complaints - Create a new complaint
-router.post('/', upload.single('image'), async (req, res, next) => {
+
+// POST /api/complaints - Create a new complaint (all authenticated users)
+router.post('/', authenticate, upload.single('image'), async (req, res, next) => {
   try {
-    const { description, latitude, longitude, user_id } = req.body;
+    const { description, latitude, longitude } = req.body;
+    // user_id is now taken from token
+    const user_id = req.user.id;
+    
     if (!description?.trim() && !req.file) return res.status(400).json({ error: 'Provide a description or an image' });
     
     const [complaint] = await db.insert(complaints).values({
       originalDescription: description,
       latitude: latitude || null,
       longitude: longitude || null,
-      userId: user_id || null,
+      userId: user_id,
       status: 'pending'
     }).returning();
 
@@ -40,12 +46,17 @@ router.post('/', upload.single('image'), async (req, res, next) => {
   }
 });
 
-// POST /api/complaints/:id/analyze - Trigger AI analysis
-router.post('/:id/analyze', async (req, res, next) => {
+// POST /api/complaints/:id/analyze - the complaint owner or management can trigger analysis.
+router.post('/:id/analyze', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const complaintResults = await db.select().from(complaints).where(eq(complaints.id, id));
     if (!complaintResults.length) return res.status(404).json({ error: 'Complaint not found' });
+    const complaint = complaintResults[0];
+    const isManagement = MANAGEMENT_ROLES.includes(req.user.role);
+    if (!isManagement && complaint.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this complaint' });
+    }
 
     const actions = await processComplaint(id, db);
 
@@ -64,28 +75,39 @@ router.post('/:id/analyze', async (req, res, next) => {
   }
 });
 
-// GET /api/complaints/:id - Get single complaint with evidence & actions
-router.get('/:id', async (req, res, next) => {
+// GET /api/complaints/:id - Get single complaint (management or owner)
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const [complaint] = await db.select().from(complaints).where(eq(complaints.id, id));
     if (!complaint) return res.status(404).json({ error: 'Complaint not found' });
+    
+    if (!MANAGEMENT_ROLES.includes(req.user.role) && complaint.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this complaint' });
+    }
 
     const evidenceList = await db.select().from(evidence).where(eq(evidence.complaintId, id));
     const agentActionsList = await db.select().from(agentActions).where(eq(agentActions.complaintId, id));
 
-    res.json({ complaint, evidence: evidenceList, agentActions: agentActionsList });
+    const validTransitions = getValidTransitions(complaint.status);
+
+    res.json({ complaint, evidence: evidenceList, agentActions: agentActionsList, validTransitions });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/complaints - List all complaints (filterable)
-router.get('/', async (req, res, next) => {
+// GET /api/complaints - List all complaints (citizens see their own, management see all)
+router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, severity, department, problem_type } = req.query;
     
     let conditions = [];
+    
+    if (!MANAGEMENT_ROLES.includes(req.user.role)) {
+      conditions.push(eq(complaints.userId, req.user.id));
+    }
+    
     if (status) conditions.push(eq(complaints.status, status));
     if (severity) conditions.push(eq(complaints.severity, severity));
     if (department) conditions.push(eq(complaints.department, department));
@@ -103,8 +125,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// POST /api/complaints/:id/verify - Upload resolution photo & verify
-router.post('/:id/verify', upload.single('image'), async (req, res, next) => {
+// POST /api/complaints/:id/verify - Upload resolution photo & verify (management only)
+router.post('/:id/verify', authenticate, authorize(...MANAGEMENT_ROLES), upload.single('image'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [complaint] = await db.select().from(complaints).where(eq(complaints.id, id));
@@ -134,8 +156,8 @@ router.post('/:id/verify', upload.single('image'), async (req, res, next) => {
   }
 });
 
-// POST /api/complaints/:id/review - Human review decision
-router.post('/:id/review', async (req, res, next) => {
+// POST /api/complaints/:id/review - Human review decision (management only)
+router.post('/:id/review', authenticate, authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { decision, notes } = req.body;
@@ -163,7 +185,7 @@ router.post('/:id/review', async (req, res, next) => {
     await db.insert(agentActions).values({
       complaintId: id,
       toolName: 'human_review',
-      input: JSON.stringify({ decision, notes }),
+      input: JSON.stringify({ decision, notes, reviewer: req.user.email }),
       output: JSON.stringify(updateData),
       reason: notes || `Human review: ${decision}`
     });
@@ -175,8 +197,8 @@ router.post('/:id/review', async (req, res, next) => {
   }
 });
 
-// PATCH /api/complaints/:id/status - Update status
-router.patch('/:id/status', async (req, res, next) => {
+// PATCH /api/complaints/:id/status - Update status (management only)
+router.patch('/:id/status', authenticate, authorize(...MANAGEMENT_ROLES), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;

@@ -58,7 +58,7 @@ Visit `http://localhost:5173`
 
 The frontend is ready for Vercel and the backend is ready for Render.
 
-1. Deploy the `server` directory using the root [`render.yaml`](render.yaml). Set `DATABASE_URL`, `GEMINI_API_KEY`, and `CLIENT_URL` in Render. `CLIENT_URL` must be the final Vercel URL (or a comma-separated list if you use a custom domain too).
+1. Deploy the `server` directory using the root [`render.yaml`](render.yaml). Set `DATABASE_URL`, `GEMINI_API_KEY`, and `CLIENT_URL` in Render. Render generates `JWT_SECRET` from the Blueprint. `CLIENT_URL` must be the final Vercel URL (or a comma-separated list if you use a custom domain too).
 2. Copy the Render service URL, such as `https://civicfix-api.onrender.com`.
 3. In Vercel, set the project's root directory to `client`, then add `VITE_API_URL` with the Render URL from step 2. Redeploy after adding it.
 

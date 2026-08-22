@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Loader2, Camera, MapPin, Mic, Shield } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Loader2, Camera, MapPin, Mic, Shield, LogIn } from 'lucide-react';
 import { api } from '../services/api.js';
 import { useOfflineQueue } from '../hooks/useOfflineQueue.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import PhotoUpload from '../components/report/PhotoUpload.jsx';
 import VoiceRecorder from '../components/report/VoiceRecorder.jsx';
 import LocationPicker from '../components/report/LocationPicker.jsx';
@@ -15,6 +16,7 @@ export default function ReportPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { isOnline, addToQueue } = useOfflineQueue();
+  const { isAuthenticated } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,7 +59,7 @@ export default function ReportPage() {
       }
     } catch (err) {
       console.error('Submission error:', err);
-      setError('An error occurred. Please try again.');
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -117,23 +119,37 @@ export default function ReportPage() {
 
           {/* Submit Action */}
           <div className="pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 px-8 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  Submitting your report...
-                </>
-              ) : (
-                <>
-                  <Shield className="w-6 h-6" />
-                  Report Issue
-                </>
-              )}
-            </button>
+            {!isAuthenticated ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center space-y-4">
+                <p className="text-slate-600 font-medium">Please sign in to report a civic issue.</p>
+                <div className="flex justify-center gap-4">
+                  <Link to="/login" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                    <LogIn className="w-4 h-4" /> Sign In
+                  </Link>
+                  <Link to="/register" className="inline-flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 px-6 rounded-lg transition-colors">
+                    Create Account
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 px-8 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    Submitting your report...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-6 h-6" />
+                    Report Issue
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

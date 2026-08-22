@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, AlertOctagon, Eye, Clock, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 // Assuming these exist
 import ComplaintCard from '../components/dashboard/ComplaintCard.jsx';
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const navigate = useNavigate();
+  const { isManagement } = useAuth();
 
   useEffect(() => {
     const fetchComplaints = async () => {
@@ -50,7 +52,7 @@ export default function DashboardPage() {
   });
 
   const handleCardClick = (complaint) => {
-    if (complaint.status === 'needs_review') {
+    if (isManagement && complaint.status === 'needs_review') {
       setSelectedComplaint(complaint);
       setShowReviewModal(true);
     } else {
@@ -71,12 +73,14 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
         <LayoutDashboard className="w-8 h-8 text-slate-800" />
-        <h1 className="text-3xl font-bold text-slate-900">CivicFix Command Center</h1>
+        <h1 className="text-3xl font-bold text-slate-900">
+          {isManagement ? 'CivicFix Command Center' : 'My Complaints'}
+        </h1>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          Unable to load dashboard data: {error}
+          Unable to load data: {error}
         </div>
       )}
 
@@ -146,8 +150,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Human Review Modal */}
-      {showReviewModal && selectedComplaint && (
+      {/* Human Review Modal (Management Only) */}
+      {isManagement && showReviewModal && selectedComplaint && (
         <HumanReviewModal 
           complaint={selectedComplaint} 
           onClose={() => setShowReviewModal(false)}
