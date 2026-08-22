@@ -49,13 +49,42 @@ export default function ComplaintPage() {
     fetchComplaint();
   }, [fetchComplaint]);
 
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 1200;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) { height *= MAX_DIM / width; width = MAX_DIM; }
+            else { width *= MAX_DIM / height; height = MAX_DIM; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          }, 'image/jpeg', 0.7);
+        };
+      };
+    });
+  };
+
   const handleVerifyResolution = async () => {
     if (!resolutionFile) return;
     setVerifying(true);
     setVerificationResult(null);
     try {
+      const compressedFile = await compressImage(resolutionFile);
       const formData = new FormData();
-      formData.append('image', resolutionFile);
+      formData.append('image', compressedFile);
       const result = await api.verifyComplaint(id, formData);
       setVerificationResult(result);
       // Re-fetch to get updated status from backend

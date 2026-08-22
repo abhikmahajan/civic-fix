@@ -18,20 +18,51 @@ export default function ReportPage() {
   const { isOnline, addToQueue } = useOfflineQueue();
   const { isAuthenticated } = useAuth();
 
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX_DIM = 1200;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) { height *= MAX_DIM / width; width = MAX_DIM; }
+            else { width *= MAX_DIM / height; height = MAX_DIM; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          }, 'image/jpeg', 0.7);
+        };
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-
-    if (!transcript && !imageFile) {
-      setError('Please provide at least a photo or a description.');
+    if (!transcript.trim() && !imageFile) {
+      setError('Please provide either a photo or a description of the issue.');
       return;
     }
 
     setIsSubmitting(true);
+    setError(null);
+
     try {
       const formData = new FormData();
-      if (imageFile) formData.append('image', imageFile);
-      formData.append('description', transcript || 'No description provided');
+      if (transcript) formData.append('description', transcript);
+      if (imageFile) {
+        const compressed = await compressImage(imageFile);
+        formData.append('image', compressed);
+      }
       if (location) {
         formData.append('latitude', location.latitude);
         formData.append('longitude', location.longitude);
