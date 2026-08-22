@@ -50,9 +50,18 @@ export const processComplaint = async (complaintId, database = db) => {
     
     if (initialEvidence && initialEvidence.fileUrl) {
       try {
-        const uploadsDir = path.join(__dirname, '../../uploads');
-        const filePath = path.join(uploadsDir, path.basename(initialEvidence.fileUrl));
-        imageBuffer = fs.readFileSync(filePath);
+        if (initialEvidence.fileUrl.startsWith('data:')) {
+          const matches = initialEvidence.fileUrl.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            mimeType = matches[1];
+            imageBuffer = Buffer.from(matches[2], 'base64');
+          }
+        } else {
+          // Fallback for older local files
+          const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '../../uploads');
+          const filePath = path.join(uploadDir, path.basename(initialEvidence.fileUrl));
+          imageBuffer = fs.readFileSync(filePath);
+        }
       } catch (err) {
         console.error('Failed to read evidence image:', err.message);
       }
@@ -191,9 +200,18 @@ export const verifyComplaintResolution = async (complaintId, afterImageBuffer, a
     let beforeMime = 'image/jpeg';
     if (beforeEvidence && beforeEvidence.fileUrl) {
       try {
-        const uploadsDir = path.join(__dirname, '../../uploads');
-        const filePath = path.join(uploadsDir, path.basename(beforeEvidence.fileUrl));
-        beforeBuffer = fs.readFileSync(filePath);
+        if (beforeEvidence.fileUrl.startsWith('data:')) {
+          const matches = beforeEvidence.fileUrl.match(/^data:(.+);base64,(.+)$/);
+          if (matches) {
+            beforeMime = matches[1];
+            beforeBuffer = Buffer.from(matches[2], 'base64');
+          }
+        } else {
+          // Fallback for older local files
+          const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '../../uploads');
+          const filePath = path.join(uploadDir, path.basename(beforeEvidence.fileUrl));
+          beforeBuffer = fs.readFileSync(filePath);
+        }
       } catch (err) {
         console.error('Failed to read before evidence:', err.message);
       }

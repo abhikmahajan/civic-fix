@@ -4,7 +4,7 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api')
   .replace(/\/$/, '') + '/api';
 
 export const assetUrl = (path) => {
-  if (!path || /^https?:\/\//i.test(path)) return path;
+  if (!path || /^https?:\/\//i.test(path) || path.startsWith('data:')) return path;
   const origin = API_URL.replace(/\/api$/, '');
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 };

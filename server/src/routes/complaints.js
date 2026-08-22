@@ -33,10 +33,13 @@ router.post('/', authenticate, upload.single('image'), async (req, res, next) =>
     }).returning();
 
     if (req.file) {
+      const base64Data = req.file.buffer.toString('base64');
+      const dataUri = `data:${req.file.mimetype};base64,${base64Data}`;
+      
       await db.insert(evidence).values({
         complaintId: complaint.id,
         type: 'initial_photo',
-        fileUrl: `/uploads/${req.file.filename}`
+        fileUrl: dataUri
       });
     }
 
@@ -138,14 +141,17 @@ router.post('/:id/verify', authenticate, authorize(...MANAGEMENT_ROLES), upload.
       return res.status(400).json({ error: 'Image is required for verification' });
     }
 
-    const imageBuffer = fs.readFileSync(req.file.path);
+    const imageBuffer = req.file.buffer;
     const mimeType = req.file.mimetype;
+    
+    const base64Data = imageBuffer.toString('base64');
+    const dataUri = `data:${mimeType};base64,${base64Data}`;
 
     // Store evidence first
     await db.insert(evidence).values({
       complaintId: id,
       type: 'resolution_photo',
-      fileUrl: `/uploads/${req.file.filename}`
+      fileUrl: dataUri
     });
 
     const result = await verifyComplaintResolution(id, imageBuffer, mimeType, db);

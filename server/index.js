@@ -22,7 +22,8 @@ app.use(cors({
   }
 }));
 app.use(express.json({ limit: '50mb' }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Local file uploads are disabled in favor of Base64 strings in the DB
+// to perfectly support Vercel serverless deployments.
 
 app.use('/api/auth', authRouter);
 app.use('/api/complaints', complaintsRouter);
@@ -35,4 +36,8 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`CivicFix server running on port ${PORT}`));
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`CivicFix server running on port ${PORT}`));
+}
+
+export default app;
