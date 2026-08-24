@@ -1,4 +1,4 @@
-# CivicFix AI
+# BetterBharat AI
 
 **AI-powered multimodal civic complaint management system designed for scale.**
 
@@ -25,7 +25,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/civic-fix-ai.git
+git clone https://github.com/abhikmahajan/better-bharat.git
 cd civic-fix-ai
 
 # Install server dependencies
