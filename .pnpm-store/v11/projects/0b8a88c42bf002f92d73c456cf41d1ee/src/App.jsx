@@ -32,7 +32,7 @@ function AppContent() {
             <Link to="/" className="flex items-center gap-2">
               <Shield className="h-8 w-8 text-blue-600" />
               <span className="text-xl font-bold text-slate-800">
-                CivicFix <span className="text-blue-600">AI</span>
+                BetterBharat <span className="text-blue-600">AI</span>
               </span>
             </Link>
             <div className="flex items-center gap-4">

@@ -74,7 +74,7 @@ export default function DashboardPage() {
       <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
         <LayoutDashboard className="w-8 h-8 text-slate-800" />
         <h1 className="text-3xl font-bold text-slate-900">
-          {isManagement ? 'CivicFix Command Center' : 'My Complaints'}
+          {isManagement ? 'BetterBharat Command Center' : 'My Complaints'}
         </h1>
       </div>
 
